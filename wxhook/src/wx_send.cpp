@@ -1193,10 +1193,20 @@ namespace WeixinSend
         //文件类型 3= png图片   47 = gif
         // ★ 2026-11-12：之前写死 3，导致 gif 发出去被微信按静态图上传（实测动图变静帧）。
         //   现按扩展名自动选类型：.gif → 47（动图），其余 → 3。
+        // ★ 2026-11-12 v2：实测只改类型字段不够（type=47 + 空文件名 → 微信静默丢弃，不落库）。
+        //   BuildSendParam1_sub 从来没填过 0x178 文件名字段 —— 微信发图管线靠文件名后缀
+        //   决定动图/静图上传通道，这里把 basename 补上。
         {
             const bool isGif = imgPath.size() >= 4
                 && _stricmp(imgPath.c_str() + (imgPath.size() - 4), ".gif") == 0;
             *(uint64_t*)(msgBuf + 0xE8 / 8) = isGif ? 47 : 3;
+
+            // 只给 gif 补固定 ASCII 文件名（微信按后缀选上传管线；中文文件名走 ANSI 字段有编码风险）
+            if (isGif) {
+                SetWeixinString((WeixinString*)(msgBuf + 0x178 / 8), "sticker.gif");
+                *(uint64_t*)(msgBuf + 0x188 / 8) = 11;
+                *(uint64_t*)(msgBuf + 0x190 / 8) = CalcWxCapacity(11);
+            }
         }
 
 
