@@ -1191,7 +1191,13 @@ namespace WeixinSend
         *(uint64_t*)(msgBuf + 0xD8 / 8) = CalcWxCapacity(wxid.size());
 
         //文件类型 3= png图片   47 = gif
-        *(uint64_t*)(msgBuf + 0xE8 / 8) = 3;        
+        // ★ 2026-11-12：之前写死 3，导致 gif 发出去被微信按静态图上传（实测动图变静帧）。
+        //   现按扩展名自动选类型：.gif → 47（动图），其余 → 3。
+        {
+            const bool isGif = imgPath.size() >= 4
+                && _stricmp(imgPath.c_str() + (imgPath.size() - 4), ".gif") == 0;
+            *(uint64_t*)(msgBuf + 0xE8 / 8) = isGif ? 47 : 3;
+        }
 
 
         // === 图片路径 ===
